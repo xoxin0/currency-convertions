@@ -11,17 +11,22 @@ from app.schemas import CurrencyCreate, ExchangeRateCreate
 
 
 # ========== Валюты (Currencies) ==========
-def get_all_currencies(db: Session) -> List[Currency]:
+def get_all_currencies(db: Session, include_inactive: bool = False) -> List[Currency]:
     """Получить список всех валют.
     Args: db: Сессия БД
     Returns: List[Currency]: Список всех валют (может быть пустым)
     Example: currencies = get_all_currencies(db)
     for currency in currencies: print(currency.code, currency.full_name)
     """
-    return db.query(Currency).order_by(Currency.code).all()
+    query = db.query(Currency)
+    if not include_inactive:
+        query = query.filter(Currency.is_active == 1)
+    return query.order_by(Currency.code).all()
 
 
-def get_currency_by_code(db: Session, code: str) -> Optional[Currency]:
+def get_currency_by_code(
+    db: Session, code: str, include_inactive: bool = False
+) -> Optional[Currency]:
     """
     Найти валюту по её коду (например, USD, EUR).
     Args: db: Сессия БД code: Код валюты (3 буквы, регистронезависимо)
@@ -29,7 +34,10 @@ def get_currency_by_code(db: Session, code: str) -> Optional[Currency]:
     Example: currency = get_currency_by_code(db, "USD") if currency: print(currency.sign)
     """
     # upper() — чтобы искать независимо от регистра (usd = USD)
-    return db.query(Currency).filter(Currency.code == code.upper()).first()
+    query = db.query(Currency).filter(Currency.code == code.upper())
+    if not include_inactive:
+        query = query.filter(Currency.is_active == 1)
+    return query.first()
 
 
 def create_currency(db: Session, currency_data: CurrencyCreate) -> Currency:
@@ -54,6 +62,30 @@ def create_currency(db: Session, currency_data: CurrencyCreate) -> Currency:
         db.rollback()  # Откатываем изменения при ошибке
         raise  # Пробрасываем исключение выше (для обработки в API)
     return db_currency
+
+
+def deactivate_currency(db: Session, code: str) -> bool:
+    """Деактивировать валюту (скрыть от API).
+    Args: db: Сессия БД
+    code: Код валюты
+    Returns: bool: True если валюта найдена и деактивирована
+    """
+    currency = get_currency_by_code(db, code, include_inactive=True)
+    if not currency:
+        return False
+    currency.is_active = 0
+    db.commit()
+    return True
+
+
+def activate_currency(db: Session, code: str) -> bool:
+    """Активировать валюту."""
+    currency = get_currency_by_code(db, code, include_inactive=True)
+    if not currency:
+        return False
+    currency.is_active = 1
+    db.commit()
+    return True
 
 
 # ========== Курсы обмена (Exchange Rates) ==========

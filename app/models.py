@@ -16,6 +16,11 @@ class Currency(Base):
     full_name = Column(String(100), nullable=False)  # US Dollar
     sign = Column(String(10), nullable=False)  # Символ: $, €, ₽
 
+    # НОВОЕ ПОЛЕ : активна ли валюта
+    is_active = Column(
+        Integer, default=1, nullable=False
+    )  # 1 = активна , 0 = неактивна
+
     # Связи (обратные ссылки на курсы, где эта валюта участвует)
     base_rates = relationship(
         "ExchangeRate",

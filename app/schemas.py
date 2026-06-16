@@ -33,6 +33,7 @@ class CurrencyResponse(CurrencyBase):
     """Схема для ответа о валюте (GET /currencies)"""
 
     id: int
+    is_active: bool = True  # Активна ли валюта (раздел 12)
 
     class Config:
         from_attributes = True  # Позволяет создавать схему из SQLAlchemy-модели

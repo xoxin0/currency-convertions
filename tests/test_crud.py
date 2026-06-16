@@ -54,6 +54,27 @@ class TestCurrencyCRUD:
         assert "USD" in codes
         assert "EUR" in codes
 
+    def test_deactivate_currency(self, db_session):
+        """Тест деактивации валюты"""
+        crud.create_currency(
+            db_session, CurrencyCreate(code="USD", full_name="US Dollar", sign="$")
+        )
+        # Проверяем , что валюта видна
+        found = crud.get_currency_by_code(db_session, "USD")
+        assert found is not None
+        # Деактивируем
+        result = crud.deactivate_currency(db_session, "USD")
+        assert result is True
+        # Проверяем , что стала НЕ видна
+        found = crud.get_currency_by_code(db_session, "USD")
+        assert found is None
+        # Но через include_inactive=True видна
+        found_inactive = crud.get_currency_by_code(
+            db_session, "USD", include_inactive=True
+        )
+        assert found_inactive is not None
+        assert found_inactive.is_active == 0
+
 
 class TestExchangeRateCRUD:
     """Тесты для курсов обмена"""

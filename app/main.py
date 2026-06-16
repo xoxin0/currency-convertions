@@ -90,9 +90,12 @@ def root():
     summary="Получить список всех валют",
     description="Возвращает массив всех валют, отсортированных по коду",
 )
-def get_currencies(db: Session = Depends(get_db)):
+def get_currencies(
+    active_only: bool = Query(True, description="Если True — только активные валюты"),
+    db: Session = Depends(get_db),
+):
     """GET /currencies - список всех валют"""
-    currencies = crud.get_all_currencies(db)
+    currencies = crud.get_all_currencies(db, include_inactive=not active_only)
     return currencies
 
 
@@ -298,6 +301,50 @@ def convert(
         converted_amount=converted_amount,
     )
     return response
+
+
+# ========== Новые эндпоинты для управления активностью валют ==========
+@app.patch(
+    "/currency/{code}/deactivate",
+    tags=["Admin"],
+    summary="Деактивировать валюту (только администратор)",
+    description="Скрывает валюту из списка, но не удаляет её",
+    responses={
+        401: {"description": "Требуется аутентификация администратора"},
+        404: {"description": "Валюта не найдена"},
+    },
+)
+def deactivate_currency_endpoint(
+    code: str, admin: str = Depends(verify_admin), db: Session = Depends(get_db)
+):
+    """PATCH /currency/USD/deactivate"""
+    if crud.deactivate_currency(db, code):
+        return {"status": "success", "message": f"Валюта {code} деактивирована"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Валюта {code} не найдена"
+        )
+
+
+@app.patch(
+    "/currency/{code}/activate",
+    tags=["Admin"],
+    summary="Активировать валюту (только администратор)",
+    responses={
+        401: {"description": "Требуется аутентификация администратора"},
+        404: {"description": "Валюта не найдена"},
+    },
+)
+def activate_currency_endpoint(
+    code: str, admin: str = Depends(verify_admin), db: Session = Depends(get_db)
+):
+    """PATCH /currency/USD/activate"""
+    if crud.activate_currency(db, code):
+        return {"status": "success", "message": f"Валюта {code} активирована"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Валюта {code} не найдена"
+        )
 
 
 # ========== Защищённые эндпоинты (только для администратора) ==========
