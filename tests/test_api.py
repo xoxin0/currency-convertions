@@ -54,7 +54,7 @@ class TestExchangeRatesAPI:
         response = client.post("/exchangeRates", json={"base_currency_code": "USD", "target_currency_code": "EUR", "rate": 0.92})
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
-        assert data["rate"] == 0.92
+        assert float(data["rate"]) == 0.92
         assert data["base_currency"]["code"] == "USD"
         assert data["target_currency"]["code"] == "EUR"
 
@@ -71,7 +71,7 @@ class TestExchangeRatesAPI:
         client.post("/exchangeRates", json={"base_currency_code": "USD", "target_currency_code": "EUR", "rate": 0.92})
         response = client.get("/exchangeRate/USDEUR")
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["rate"] == 0.92
+        assert float(response.json()["rate"]) == 0.92
 
     def test_get_exchange_rate_by_pair_not_found(self, client):
         client.post("/currencies", json={"code": "USD", "full_name": "US Dollar", "sign": "$"})
@@ -85,7 +85,7 @@ class TestExchangeRatesAPI:
         client.post("/exchangeRates", json={"base_currency_code": "USD", "target_currency_code": "EUR", "rate": 0.92})
         response = client.patch("/exchangeRate/USDEUR", json={"rate": 0.95})
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["rate"] == 0.95
+        assert float(response.json()["rate"]) == 0.95
 
 class TestExchangeAPI:
     def setup_currencies_and_rates(self, client):
@@ -100,30 +100,30 @@ class TestExchangeAPI:
         response = client.get("/exchange?from=USD&to=EUR&amount=100")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["converted_amount"] == 92.00
+        assert float(data["converted_amount"]) == 92.00
         assert data["base_currency"]["code"] == "USD"
         assert data["target_currency"]["code"] == "EUR"
-        assert data["amount"] == 100
+        assert float(data["amount"]) == 100
 
     def test_convert_reverse_rate(self, client):
         self.setup_currencies_and_rates(client)
         response = client.get("/exchange?from=EUR&to=USD&amount=100")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["converted_amount"] == 108.70
+        assert float(data["converted_amount"]) == 108.70
 
     def test_convert_cross_rate(self, client):
         self.setup_currencies_and_rates(client)
         response = client.get("/exchange?from=EUR&to=RUB&amount=100")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["converted_amount"] == 10054.35
+        assert float(data["converted_amount"]) == 10054.35
 
     def test_convert_same_currency(self, client):
         self.setup_currencies_and_rates(client)
         response = client.get("/exchange?from=USD&to=USD&amount=100")
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["converted_amount"] == 100.00
+        assert float(response.json()["converted_amount"]) == 100.00
 
     def test_convert_negative_amount(self, client):
         self.setup_currencies_and_rates(client)

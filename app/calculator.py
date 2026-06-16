@@ -76,8 +76,11 @@ def convert_currency(
     # Сценарий 3: Кросс-курс через USD
     if rate is None:
         # Получаем курсы FROM→USD и USD→TO
-        from_to_usd = get_exchange_rate_by_pair(db, from_code, "USD")
-        usd_to_to = get_exchange_rate_by_pair(db, "USD", to_code)
+        from_to_usd_obj = get_exchange_rate_by_pair(db, from_code, "USD")
+        usd_to_to_obj = get_exchange_rate_by_pair(db, "USD", to_code)
+
+        from_to_usd = from_to_usd_obj.rate if from_to_usd_obj else None
+        usd_to_to = usd_to_to_obj.rate if usd_to_to_obj else None
 
         # Или обратные варианты
         if not from_to_usd:
@@ -93,7 +96,7 @@ def convert_currency(
         # Если оба курса к USD найдены
         if from_to_usd and usd_to_to:
             # FROM → USD → TO
-            rate = usd_to_to / from_to_usd
+            rate = from_to_usd * usd_to_to
             method = "cross_usd"
     # 5. Если курс так и не найден
 

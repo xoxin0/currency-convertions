@@ -239,7 +239,7 @@ def update_exchange_rate(
 )
 def convert(
     from_code: str = Query(..., alias='from', min_length=3, max_length=3, description="Код исходной валюты (USD, EUR)"),
-    to_code: str = Query(..., min_length=3, max_length=3, description="Код целевой валюты (RUB, GBP)"),
+    to_code: str = Query(..., alias='to', min_length=3, max_length=3, description="Код целевой валюты (RUB, GBP)"),
     amount: Decimal = Query(..., gt=0, description="Сумма для конвертации"),
     db: Session = Depends(get_db)
 ):
