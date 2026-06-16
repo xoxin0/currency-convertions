@@ -4,20 +4,21 @@
 3. Кросс-курс через USD
 Модуль не зависит от API и может тестироваться отдельно."""
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional, Tuple
+
 from sqlalchemy.orm import Session
 
 from app.crud import get_currency_by_code, get_exchange_rate_by_pair
-from app.models import Currency
+
 
 def _get_usd_rate(db: Session, currency_code: str) -> Optional[Decimal]:
     """Вспомогательная функция: получить курс валюты к USD.
     Args: db: Сессия БД currency_code: Код валюты (USD, EUR, RUB...)
-    Returns: Optional[Decimal]: Курс к USD или None, если нет ни прямого, ни обратного курса Пример: Курс USD→EUR = 0.92 → для EUR _get_usd_rate = 0.92
+    Returns: Optional[Decimal]: Курс к USD или None, если нет ни прямого, ни обратного курса Пример: Курс USD→EUR = 0.92 → для EUR _get_usd_rate = 0.92  # noqa: E501
     """
     if currency_code == "USD":
-        return Decimal('1') # USD к USD = 1
+        return Decimal("1")  # USD к USD = 1
     # Прямой курс: USD → валюта
     rate_direct = get_exchange_rate_by_pair(db, "USD", currency_code)
     if rate_direct:
@@ -26,20 +27,20 @@ def _get_usd_rate(db: Session, currency_code: str) -> Optional[Decimal]:
     # Обратный курс: валюта → USD
     rate_reverse = get_exchange_rate_by_pair(db, currency_code, "USD")
     if rate_reverse:
-        return Decimal('1') / rate_reverse.rate
+        return Decimal("1") / rate_reverse.rate
     return None
 
+
 def convert_currency(
-    db: Session,
-    from_code: str, to_code: str, amount: Decimal
+    db: Session, from_code: str, to_code: str, amount: Decimal
 ) -> Tuple[Optional[Decimal], str]:
     """Конвертировать сумму из одной валюты в другую.
-    Args: db: Сессия БД from_code: Код исходной валюты (например, "USD") to_code: Код целевой валюты (например, "EUR") amount: Сумма для конвертации (положительное число)
+    Args: db: Сессия БД from_code: Код исходной валюты (например, "USD") to_code: Код целевой валюты (например, "EUR") amount: Сумма для конвертации (положительное число)  # noqa: E501
     Returns:
     Tuple[Optional[Decimal], str]: (сконвертированная сумма, описание метода расчёта)
 
-    Raises: ValueError: Если amount <= 0 ValueError: Если одна из валют не найдена ValueError: Если курс не найден (ни по одному сценарию)
-    Методы расчёта: - "direct": прямой курс из БД - "reverse": обратный курс (1 / курс) - "cross_usd": кросс-курс через USD
+    Raises: ValueError: Если amount <= 0 ValueError: Если одна из валют не найдена ValueError: Если курс не найден (ни по одному сценарию)  # noqa: E501
+    Методы расчёта: - "direct": прямой курс из БД - "reverse": обратный курс (1 / курс) - "cross_usd": кросс-курс через USD  # noqa: E501
     """
     # 1. Валидация суммы
     if amount <= 0:
@@ -56,7 +57,7 @@ def convert_currency(
 
     # 3. Если исходная и целевая валюты одинаковы
     if from_code == to_code:
-        return amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP), "same_currency"
+        return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP), "same_currency"
 
     # 4. Поиск курса по трём сценариям
     rate = None
@@ -70,7 +71,7 @@ def convert_currency(
     if rate is None:
         reverse_rate = get_exchange_rate_by_pair(db, to_code, from_code)
         if reverse_rate:
-            rate = Decimal('1') / reverse_rate.rate
+            rate = Decimal("1") / reverse_rate.rate
             method = "reverse"
 
     # Сценарий 3: Кросс-курс через USD
@@ -87,12 +88,12 @@ def convert_currency(
             # Пробуем USD→FROM
             usd_to_from = get_exchange_rate_by_pair(db, "USD", from_code)
             if usd_to_from:
-                from_to_usd = Decimal('1') / usd_to_from.rate
+                from_to_usd = Decimal("1") / usd_to_from.rate
         if not usd_to_to:
             # Пробуем TO→USD
             to_to_usd = get_exchange_rate_by_pair(db, to_code, "USD")
             if to_to_usd:
-                usd_to_to = Decimal('1') / to_to_usd.rate
+                usd_to_to = Decimal("1") / to_to_usd.rate
         # Если оба курса к USD найдены
         if from_to_usd and usd_to_to:
             # FROM → USD → TO
@@ -108,17 +109,20 @@ def convert_currency(
     # 6. Расчёт и округление
     converted = amount * rate
     # Округляем до 2 знаков после запятой (стандарт для валют)
-    converted = converted.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    converted = converted.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     return converted, method
 
-def get_cross_rate_via_usd(db: Session, from_code: str, to_code: str) -> Optional[Decimal]:
+
+def get_cross_rate_via_usd(
+    db: Session, from_code: str, to_code: str
+) -> Optional[Decimal]:
     """Получить кросс-курс через USD (без суммы, просто курс). Полезно для демонстрации.
     Args: db: Сессия БД from_code: Код исходной валюты to_code: Код целевой валюты
     Returns: Optional[Decimal]: Кросс-курс или None
     """
     try:
         # Конвертируем 1 единицу
-        converted, _ = convert_currency(db, from_code, to_code, Decimal('1'))
+        converted, _ = convert_currency(db, from_code, to_code, Decimal("1"))
         return converted
     except ValueError:
         return None

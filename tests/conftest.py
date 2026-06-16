@@ -1,14 +1,16 @@
 """Общие фикстуры для всех тестов. Pytest автоматически подхватывает этот файл."""
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
 
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app import crud
 from app.database import Base, get_db
 from app.main import app
-from app import crud
 from app.schemas import CurrencyCreate, ExchangeRateCreate
+
 
 # ========== Фикстура для тестовой БД ==========
 @pytest.fixture(scope="function")
@@ -17,7 +19,11 @@ def db_session():
     Каждый тест получает ЧИСТУЮ БД (данные не пересекаются между тестами).
     scope="function" — новая БД для каждого теста."""
     # Создаём движок для БД в оперативной памяти (быстро и изолированно)
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     # Создаём все таблицы
     Base.metadata.create_all(bind=engine)
     # Создаём сессию
@@ -28,16 +34,19 @@ def db_session():
     finally:
         db.close()
 
+
 # ========== Фикстура для тестового клиента FastAPI ==========
 @pytest.fixture(scope="function")
 def client(db_session):
     """Создаёт тестовый клиент FastAPI, который использует нашу тестовую БД.
     Подменяем зависимость get_db() на нашу тестовую сессию."""
+
     def override_get_db():
         try:
             yield db_session
         finally:
             pass
+
     # Подменяем зависимость в приложении
     app.dependency_overrides[get_db] = override_get_db
     # Создаём тестовый клиент
@@ -45,6 +54,7 @@ def client(db_session):
         yield test_client
     # Очищаем подмену после тестов
     app.dependency_overrides.clear()
+
 
 # ========== Вспомогательные фикстуры для заполнения тестовыми данными ==========
 @pytest.fixture
@@ -61,12 +71,17 @@ def sample_currencies(db_session):
         currencies[currency.code] = currency
     return currencies
 
+
 @pytest.fixture
 def sample_exchange_rates(db_session, sample_currencies):
     """Создаёт тестовые курсы на основе sample_currencies."""
     rates_data = [
-        ExchangeRateCreate(base_currency_code="USD", target_currency_code="EUR", rate=0.92),
-        ExchangeRateCreate(base_currency_code="USD", target_currency_code="RUB", rate=92.50),
+        ExchangeRateCreate(
+            base_currency_code="USD", target_currency_code="EUR", rate=0.92
+        ),
+        ExchangeRateCreate(
+            base_currency_code="USD", target_currency_code="RUB", rate=92.50
+        ),
     ]
     rates = []
     for rate_data in rates_data:
