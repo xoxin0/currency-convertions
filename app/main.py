@@ -5,10 +5,12 @@ from decimal import Decimal
 from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import calculator, crud
+from app.auth import verify_admin, verify_api_key
 from app.database import Base, engine, get_db
 from app.schemas import (
     CurrencyCreate,
@@ -48,6 +50,19 @@ app = FastAPI(
 """,
     version="1.0.0",
     lifespan=lifespan,
+)
+
+# Настройка CORS — разрешаем доступ с определённых доменов
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # React-фронтенд
+        "http://127.0.0.1:3000",
+        "https://yourdomain.com",  # Production домен
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["*"],
 )
 
 
@@ -283,3 +298,73 @@ def convert(
         converted_amount=converted_amount,
     )
     return response
+
+
+# ========== Защищённые эндпоинты (только для администратора) ==========
+@app.post(
+    "/admin/reset-rates",
+    tags=["Admin"],
+    summary="Сбросить все курсы (только администратор)",
+    description="Удаляет все существующие курсы обмена. Требует аутентификации.",
+    responses={401: {"description": "Требуется аутентификация администратора"}},
+)
+def reset_all_rates(admin: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    """Сброс всех курсов обмена. Используется для тестирования или массового обновления."""
+    from app.models import ExchangeRate
+
+    count = db.query(ExchangeRate).delete()
+    db.commit()
+    return {"status": "success", "message": f"Удалено курсов: {count}", "admin": admin}
+
+
+@app.get(
+    "/admin/stats",
+    tags=["Admin"],
+    summary="Статистика системы (только администратор)",
+    description="Возвращает метрики: количество валют, курсов, размер БД",
+    responses={401: {"description": "Требуется аутентификация администратора"}},
+)
+def get_system_stats(admin: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    """Сбор статистики для мониторинга."""
+    import os
+
+    from app.models import Currency, ExchangeRate
+
+    currencies_count = db.query(Currency).count()
+    rates_count = db.query(ExchangeRate).count()
+
+    # Размер БД
+    db_size = 0
+    if os.path.exists("currencies.db"):
+        db_size = os.path.getsize("currencies.db") / 1024  # KB
+
+    return {
+        "currencies_count": currencies_count,
+        "exchange_rates_count": rates_count,
+        "database_size_kb": round(db_size, 2),
+        "timestamp": __import__("datetime").datetime.now().isoformat(),
+    }
+
+
+@app.get(
+    "/mobile/rates",
+    tags=["Mobile"],
+    summary="Список курсов для мобильного приложения (с API-ключом)",
+    description="Упрощённый ответ для мобильных клиентов. Требует API-ключ.",
+    responses={401: {"description": "Неверный или отсутствующий API-ключ"}},
+)
+def get_mobile_rates(
+    api_key: str = Depends(verify_api_key), db: Session = Depends(get_db)
+):
+    """Эндпоинт для мобильных приложений. Возвращает только необходимые поля (экономия трафика)."""
+    rates = crud.get_all_exchange_rates(db)
+    # Упрощённый формат для мобильных устройств
+    return [
+        {
+            "from": rate.base_currency.code,
+            "to": rate.target_currency.code,
+            "rate": float(rate.rate),
+            "updated": rate.id,  # В реальном проекте добавить updated_at
+        }
+        for rate in rates
+    ]

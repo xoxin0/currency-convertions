@@ -1,0 +1,20 @@
+[Unit]
+Description=Currency Exchange API Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/currency-exchange
+Environment="PATH=/var/www/currency-exchange/venv/bin"
+Environment="DEBUG=False"
+Environment="HOST=127.0.0.1"
+Environment="PORT=8000"
+ExecStart=/var/www/currency-exchange/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 4
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

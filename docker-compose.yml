@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  api:
+    build: .
+    container_name: currency-exchange-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=postgresql://user:password@db:5432/currency_exchange
+    depends_on:
+      - db
+    volumes:
+      - ./backups:/app/backups
+    restart: always
+
+  db:
+    image: postgres:15
+    container_name: currency-exchange-db
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=currency_exchange
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  postgres_data:
